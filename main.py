@@ -239,6 +239,19 @@ async def help(ctx):
     await ctx.send(embed=embed)
 
 
+# Self Created Help Command
+@client.command(pass_context=True)
+async def gitHub(ctx):
+    # Create embed with help information needed
+    embed = discord.Embed(
+        title="GitHub Hyperlink",
+        description="Click on link to travel to repo in GitHub for TossBot.",
+        colour=discord.Colour.purple(),
+        url='https://github.com/aar0nbennett/TossBot'
+    )
+    await ctx.send(embed=embed)
+
+
 # Swear Jar display command
 @client.command(pass_context=True)
 async def swearJar(ctx):
