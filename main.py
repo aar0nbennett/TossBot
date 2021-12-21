@@ -1,6 +1,4 @@
-from typing import List
-
-import discord, os, asyncio, csv, pandas as pd, json, random
+import discord, os, asyncio, csv, pandas as pd, json, random, datetime
 from tabulate import tabulate
 
 intents = discord.Intents.all()
@@ -17,8 +15,8 @@ from discord.ext import commands, tasks
 verStr = 'Version Alpha 1.0'
 commandsPrefix = '~'  # In the server settings make it so server admin can change prefix
 profanityToggle = True
+swearwords = []
 with open('swearwords.txt', 'r') as f:  # Creating swearwords list
-    global swearwords
     words = f.read()
     swearwords = words.split()
 currName = 'coin'
@@ -77,6 +75,23 @@ async def on_guild_join(guild):
         writer = csv.DictWriter(f, fieldnames=csv_fieldnames)
         writer.writeheader()
         writer.writerows(csv_rows)
+
+    # Create bot channel category
+    '''
+    Update later to make so that only TossBot can add messages to the channels
+    Use something like this:
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            guild.me: discord.PermissionOverwrite(read_messages=True)
+        }
+    Just make it so its everyone can read messages but cant send
+    '''
+    category = guild.create_category_channel('TossBot Channels')
+    # Create bot audit log channel
+    guild.create_text_channel('audit-log', category=category)
+    # Create bet log channel
+    guild.create_text_channel('bet-log', category=category)
+
     '''
                 Guilds Setting JSON
     1. Pull dictionary from Guilds Setting JSON
@@ -235,6 +250,7 @@ async def swearJar(ctx):
 
     await ctx.send(embed=embed)
 
+
 # Coins leaderboard display command
 @client.command(pass_context=True)
 async def leaderboard(ctx):
@@ -363,6 +379,80 @@ async def gift(ctx, user: discord.User, amount: int):
         await ctx.send("You must be an Admin to use this command.")
 
 
+# Bet command on an honor system that you react if you won or not
+@client.command(pass_context=True)
+async def bet(ctx, amount: int):
+    # Check to make sure they entered a positive number
+    if amount <= 0:
+        await ctx.send('Bid must be a positive integer')
+        return
+    # Check to make sure they have the funds to make the bet
+    csv_list = getCSVList(ctx.message.guild.id)
+    csv_list.pop(0)
+    csv_list.pop(0)
+    max_bid = None
+    for row in csv_list:
+        if row[0] == str(ctx.message.author.id):
+            max_bid = row[1]
+            break
+    # If they don't send message with their max bet possible and return
+    if amount > int(max_bid):
+        await ctx.send('Bid cannot be larger than amount in account\n'
+                       'Your max bid is %s' % max_bid)
+        return
+    # Create embed of bet
+    better = ctx.message.author
+    today = datetime.datetime.now()
+    won = False
+    bet_channel = None
+    embed = discord.Embed(
+        title="Bet",
+        timestamp=today,
+        colour=discord.Colour.purple()
+        # Add footer on what emoji to press
+    )
+    embed.add_field(name='Amount Bet', value=str(amount), inline=False)
+    embed.set_footer(text='Click Green check if won, Red cross if loss')
+    # Send embed to user PM with push reactions W and L
+    embed_msg = await better.send(embed=embed)
+    await embed_msg.add_reaction('✅')
+    await embed_msg.add_reaction('❌')
+
+    # Wait for them to push
+    def check(reaction, user):
+        return user == better and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
+
+    reaction, user = await client.wait_for('reaction_add', check=check)
+    # See which reaction better clicked
+    cache_msg = discord.utils.get(client.cached_messages, id=embed_msg.id)
+    print(cache_msg.reactions)
+    for reaction in cache_msg.reactions:
+        if reaction.count == 2:  # If the user reacted with this emoji
+            print(reaction.emoji)
+            if reaction.emoji == '✅': won = True
+    # Once pushed either reward or remove coins from them
+    if won:
+        await addFunds(ctx.message.guild.id, better, amount)
+    else:
+        await removeFunds(ctx.message.guild.id, better, amount)
+    # Once pushed create outcome embed and send to user PM and bet-log
+    outcome_embed = discord.Embed(
+        title="Bet Outcome",
+        timestamp=today,
+        colour=discord.Colour.purple()
+    )
+    outcome_embed.add_field(name='Amount Bet by ' + better.name, value=str(amount), inline=False)
+    if won:
+        outcome_embed.add_field(name='Outcome of bet', value='Won ' + str(amount), inline=False)
+    elif not won:
+        outcome_embed.add_field(name='Outcome of bet', value='Lost ' + str(amount), inline=False)
+    await better.send(embed=outcome_embed)
+    for channel in ctx.message.guild.text_channels:
+        if channel.name == 'bet-log':
+            bet_channel = channel
+    await bet_channel.send(embed=outcome_embed)
+
+
 # Raffle method, called when the weekly raffle timer is up
 async def raffle(guild_id: int):
     # Grab amount of coins in swear jar
@@ -399,12 +489,6 @@ async def called_once_a_week():
         winner_mentionable = '<@' + winner_id + '>'
         await message_channel.send('Congrats %s you have won this weeks raffle!\n'
                                    'You have won %d' % (winner_mentionable, int(winnings)))
-
-
-# Bet command on an honor system that you react if you won or not
-@client.command(pass_context=True)
-async def bet(ctx, amount: int):
-    print('Bet does nothing atm')
 
 
 @called_once_a_week.before_loop
