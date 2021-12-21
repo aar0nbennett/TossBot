@@ -471,6 +471,18 @@ async def bet(ctx, amount: int):
     await bet_channel.send(embed=outcome_embed)
 
 
+''' 
+/////////////////////////////////////////////
+---------------------------------------------
+Casino/Game Commands
+---------------------------------------------
+/////////////////////////////////////////////
+'''
+# Bacl jack command that plays off an embed
+@client.command(pass_context=True)
+async def blackjack(ctx, bet: int):
+    print('Blackjack command does nothing atm. Come back once it is implemented.')
+
 # Raffle method, called when the weekly raffle timer is up
 async def raffle(guild_id: int):
     # Grab amount of coins in swear jar
