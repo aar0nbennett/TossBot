@@ -229,14 +229,19 @@ Display Commands
 # Self Created Help Command
 @client.command(pass_context=True)
 async def help(ctx):
-    await ctx.send('Help command is not implemented as of now. Come back soon!')
     # Create embed with help information needed
+    embed = discord.Embed(
+        title="Help File Hyperlink",
+        description="Click on link to travel to Help file in GitHub.",
+        colour=discord.Colour.purple(),
+        url='https://github.com/aar0nbennett/TossBot/blob/master/HELP.md'
+    )
+    await ctx.send(embed=embed)
 
 
 # Swear Jar display command
 @client.command(pass_context=True)
 async def swearJar(ctx):
-    await ctx.send('Swear jar command is not implemented as of now. Come back soon!')
     # Create embed with amount in swear jar and time before next raffle
     embed = discord.Embed(
         title="Swear Jar",
