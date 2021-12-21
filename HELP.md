@@ -10,6 +10,7 @@ This will give you an overview of all commands that can be used in TossBot.
 
 ## Display commands
 - help: Displays embed that sends link to this file to give overview of TossBot commands.
+- gitHub: Displays embed that sends link to TossBot GitHub
 - swearJar: Displays amount of coins in swear jar.
 - leaderboard: Displays top 10 users per amount of coins in server.
 - balance: Displays user who called the methods coin balance.
