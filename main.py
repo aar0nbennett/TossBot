@@ -3,6 +3,7 @@ from tabulate import tabulate
 
 intents = discord.Intents.all()
 from discord.ext import commands, tasks
+import pydealer
 
 # from keep_alive import keep_alive
 
@@ -34,6 +35,7 @@ default_gs_dict = {
     "botChannelName": "None",
     "bannedWords": ["ass", "bastard", "bitch", "cunt", "dick", "fuck"]
 }
+face_cards = ['Jack', 'Queen', 'King']
 
 # Client Setup
 activity = discord.Activity(name=verStr, type=discord.ActivityType.streaming)
@@ -478,10 +480,231 @@ Casino/Game Commands
 ---------------------------------------------
 /////////////////////////////////////////////
 '''
-# Bacl jack command that plays off an embed
+
+
+# Black command that plays off an embed
 @client.command(pass_context=True)
 async def blackjack(ctx, bet: int):
     print('Blackjack command does nothing atm. Come back once it is implemented.')
+
+    # Define a inner helper function to output the sum of a hand
+    def hand_sum(hand, ace_bool):
+        h_sum = 0
+        for c in hand.cards:
+            if any(face_card in c.value for face_card in face_cards):
+                h_sum += 10
+            elif c.value == 'Ace' and not ace_bool:
+                h_sum += 1
+            elif c.value == 'Ace' and ace_bool:
+                h_sum += 11
+            else:
+                h_sum += int(c.value)
+        return h_sum
+
+    # Set up run
+    player = ctx.message.author
+    today = datetime.datetime.now()
+    embed = discord.Embed(
+        title="Blackjack",
+        description='Goal is to be closest to 21, do not go over 21, if you do automatically lose.',
+        timestamp=today,
+        colour=discord.Colour.purple()
+    )
+    embed.set_footer(text='Click Fist to hit, Stop sign to stay.\n'
+                          'Click up arrow for Ace 11, down arrow for Ace 1.')
+    # Deal cards
+    deck = pydealer.Deck()
+    deck.shuffle()
+    dealer_hand = pydealer.Stack()
+    player_hand = pydealer.Stack()
+    dealer_dealt = deck.deal(2)
+    player_dealt = deck.deal(2)
+    dealer_hand.add(dealer_dealt)
+    player_hand.add(player_dealt)
+    # Two fields dealers/bots card and players cards
+    embed.add_field(name='Dealers Hand', value=str(dealer_hand[0]) + '\nFacedown card', inline=True)
+    embed.add_field(
+        name=player.name + ' Hand',
+        value=str(player_hand) + '\nTotal: ' + str(hand_sum(player_hand, False)),
+        inline=True
+    )
+    # Deal cards, if get ace add high/low reactions
+    # Send message, add 2 reactions
+    embed_msg = await ctx.send(embed=embed)
+    await embed_msg.add_reaction('👊')
+    await embed_msg.add_reaction('🛑')
+    await embed_msg.add_reaction('⬆')
+    await embed_msg.add_reaction('⬇')
+    '''
+    # Wait for reaction to be pressed
+    def check(reaction, user):
+        return user == player and (str(reaction.emoji) == '👊' or str(reaction.emoji) == '🛑')
+    reaction, user = await client.wait_for('reaction_add', check=check)
+    # See which reaction better clicked
+    cache_msg = discord.utils.get(client.cached_messages, id=embed_msg.id)
+    hit = None
+    print(cache_msg.reactions)
+    for reaction in cache_msg.reactions:
+        if reaction.count == 2:  # If the user reacted with this emoji
+            print(reaction.emoji)
+            if reaction.emoji == '👊':
+                hit = True
+            elif reaction.emoji == '🛑':
+                hit = False
+    # If stay determine winner (dealer or player), flip dealers second card
+    if not hit:
+        embed.set_field_at(index=0, name='Dealer Hand', value=str(dealer_hand), inline=True)
+    # If hit give another card
+    if hit:
+        # Check if they've gone over
+        player_hand.add(deck.deal(1))
+        embed.set_field_at(index=1, name=player.name+' Hand', value=str(player_hand), inline=True)
+    await embed_msg.edit(embed=embed)
+    '''
+    '''
+    Play Players hand:
+    Check if Ace has been played
+    - If hit reaction is pushed add another card
+        - If over 21 exit loop, jump to dealer winning
+        - Clear user reaction
+        - Loop again
+    - If stay exit loop
+    '''
+
+    # Wait until hit/stay reaction is clicked
+    def hscheck(reaction, user):
+        return user == player and (str(reaction.emoji) == '👊' or str(reaction.emoji) == '🛑')
+
+    stay = False
+    player_ace = True
+    while not stay:
+        # Clear user reactions
+        await embed_msg.remove_reaction(emoji='👊', member=player)
+        await embed_msg.remove_reaction(emoji='🛑', member=player)
+        await embed_msg.remove_reaction(emoji='⬆', member=player)
+        await embed_msg.remove_reaction(emoji='⬇', member=player)
+
+        reaction, user = await client.wait_for('reaction_add', check=hscheck)
+        # See which reaction player clicked
+        cache_msg = discord.utils.get(client.cached_messages, id=embed_msg.id)
+        for reaction in cache_msg.reactions:
+            if reaction.count == 2:  # If the user reacted with this emoji
+                if reaction.emoji == '👊':
+                    stay = False
+                elif reaction.emoji == '🛑':
+                    stay = True
+                elif reaction.emoji == '⬆':
+                    player_ace = True
+                elif reaction.emoji == '⬇':
+                    player_ace = False
+
+        # If stay leave loop
+        if stay:
+            break
+        # If hit give another card
+        elif not stay:
+            # Deal them the next hand
+            player_hand.add(deck.deal(1))
+            player_sum = hand_sum(player_hand, player_ace)
+            embed.set_field_at(
+                index=1,
+                name=player.name + ' Hand',
+                value=str(player_hand) + '\nTotal: ' + str(player_sum),
+                inline=True
+            )
+            # Check if player has gone over
+            if player_sum > 21:
+                print('Bust')
+                # Check if they have an ace
+                for card in player_hand.cards:
+                    if card.value == 'Ace':
+                        # Clear high low reactions
+                        await embed_msg.remove_reaction(emoji='⬆', member=player)
+                        await embed_msg.remove_reaction(emoji='⬇', member=player)
+
+                        def hlcheck(reaction, user):
+                            return user == player and (str(reaction.emoji) == '⬆' or str(reaction.emoji) == '⬇')
+
+                        reaction, user = await client.wait_for('reaction_add', timeout=2.0, check=hlcheck)
+                        # See which reaction player clicked
+                        cache_msg = discord.utils.get(client.cached_messages, id=embed_msg.id)
+                        for reaction in cache_msg.reactions:
+                            if reaction.count == 2:  # If the user reacted with this emoji
+                                if reaction.emoji == '⬆':
+                                    player_ace = True
+                                elif reaction.emoji == '⬇':
+                                    player_ace = False
+                if hand_sum(player_hand, player_ace) > 21:
+                    print('Still Bust')
+                    stay = True
+                else:
+                    stay = False
+        await embed_msg.edit(embed=embed)
+
+    '''
+    Play Dealers hand:
+    - Hits when card value is under 15
+    - Stays if over
+    - If goes over 21 with an ace make it low, then hit again
+    '''
+    dealer_ace = True
+    dealer_sum = hand_sum(dealer_hand, dealer_ace)
+    embed.set_field_at(index=0, name='Dealer Hand', value=str(dealer_hand) + '\nTotal: ' + str(dealer_sum), inline=True)
+    await embed_msg.edit(embed=embed)
+    stay = False
+    while not stay:
+        dealer_sum = hand_sum(dealer_hand, dealer_ace)
+        if 15 < dealer_sum <= 21:
+            stay = True
+            break
+        elif dealer_sum < 15:
+            dealer_hand.add(deck.deal(1))
+            dealer_sum = hand_sum(dealer_hand, dealer_ace)
+            embed.set_field_at(
+                index=0,
+                name='Dealer Hand',
+                value=str(dealer_hand) + '\nTotal: ' + str(dealer_sum),
+                inline=True
+            )
+        else:  # If dealer_sum is over 21
+            # Check if contains an ace
+            contains_ace = False
+            for card in dealer_hand.cards:
+                if card.value == 'Ace':
+                    contains_ace = True
+            if contains_ace:
+                dealer_ace = False
+                dealer_sum = hand_sum(dealer_hand, dealer_ace)
+                embed.set_field_at(
+                    index=0,
+                    name='Dealer Hand',
+                    value=str(dealer_hand) + '\nTotal: ' + str(dealer_sum),
+                    inline=True
+                )
+                if dealer_sum <= 21:
+                    stay = False
+                else:
+                    stay = True
+            elif not contains_ace:
+                stay = True
+
+    # Determine who's won
+    dealer_sum = hand_sum(dealer_hand, dealer_ace)
+    player_sum = hand_sum(player_hand, player_ace)
+
+    if player_sum > 21:
+        # Withdraw coins from player
+        embed.add_field(name='Player has busted', value=player.name + ' has lost ' + str(bet), inline=False)
+    elif dealer_sum > 21:
+        embed.add_field(name='Dealer has busted', value=player.name + ' has won ' + str(bet), inline=False)
+    elif player_sum > dealer_sum:
+        # Payout player
+        embed.add_field(name=player.name + 'has won!', value='They have been paid out ' + str(bet), inline=False)
+    elif player_sum <= dealer_sum:
+        # Withdraw coins from player
+        embed.add_field(name='Dealer has won.', value=player.name + 'has lost ' + str(bet), inline=False)
+    await embed_msg.edit(embed=embed)
+
 
 # Raffle method, called when the weekly raffle timer is up
 async def raffle(guild_id: int):
