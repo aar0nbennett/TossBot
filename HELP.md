@@ -22,3 +22,6 @@ This will give you an overview of all commands that can be used in TossBot.
 - fine (Discord User, Integer) +: Removes amount of coins specified by the integer parameter from the specified Discord User. 
 - gift (Discord User, Integer) +: Gives amount of coins specified by the integer parameter from the specified Discord User. 
 - bet (Integer): Allows user to make a bet of Integer amount specified, you either lose amount spefieid or gain.
+
+## Casino Commands
+- blackjack (Integer) : Plays a hand of blackjack and user either wins or loses amount bet. Note if no arrow pressed ace is played low. 
