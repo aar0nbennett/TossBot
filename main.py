@@ -13,7 +13,7 @@ import pydealer
 '''
 
 # Global Variables
-verStr = 'Version Alpha 1.0'
+verStr = 'Version Alpha 2.0'
 commandsPrefix = '~'  # In the server settings make it so server admin can change prefix
 profanityToggle = True
 swearwords = []
