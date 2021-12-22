@@ -24,4 +24,4 @@ This will give you an overview of all commands that can be used in TossBot.
 - bet (Integer): Allows user to make a bet of Integer amount specified, you either lose amount spefieid or gain.
 
 ## Casino Commands
-- blackjack (Integer) : Plays a hand of blackjack and user either wins or loses amount bet. Note if no arrow pressed ace is played low. 
+- blackjack (Integer) : Plays a hand of blackjack and user either wins or loses amount bet. Note if no arrow pressed ace is played high. 
