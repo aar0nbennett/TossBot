@@ -8,6 +8,8 @@ This will give you an overview of all commands that can be used in TossBot.
 
 *Plus operand (**+**) signifies admin only commands.*
 
+*Do not as one user have multiple of the same game going at once.*
+
 ## Display commands
 - help: Displays embed that sends link to this file to give overview of TossBot commands.
 - gitHub: Displays embed that sends link to TossBot GitHub
