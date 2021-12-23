@@ -485,8 +485,6 @@ Casino/Game Commands
 # Black command that plays off an embed
 @client.command(pass_context=True)
 async def blackjack(ctx, bet: int):
-    print('Blackjack command does nothing atm. Come back once it is implemented.')
-
     # Define a inner helper function to output the sum of a hand
     def hand_sum(hand, ace_bool):
         h_sum = 0
@@ -528,39 +526,12 @@ async def blackjack(ctx, bet: int):
         value=str(player_hand) + '\nTotal: ' + str(hand_sum(player_hand, False)),
         inline=True
     )
-    # Deal cards, if get ace add high/low reactions
     # Send message, add 2 reactions
     embed_msg = await ctx.send(embed=embed)
     await embed_msg.add_reaction('👊')
     await embed_msg.add_reaction('🛑')
     await embed_msg.add_reaction('⬆')
     await embed_msg.add_reaction('⬇')
-    '''
-    # Wait for reaction to be pressed
-    def check(reaction, user):
-        return user == player and (str(reaction.emoji) == '👊' or str(reaction.emoji) == '🛑')
-    reaction, user = await client.wait_for('reaction_add', check=check)
-    # See which reaction better clicked
-    cache_msg = discord.utils.get(client.cached_messages, id=embed_msg.id)
-    hit = None
-    print(cache_msg.reactions)
-    for reaction in cache_msg.reactions:
-        if reaction.count == 2:  # If the user reacted with this emoji
-            print(reaction.emoji)
-            if reaction.emoji == '👊':
-                hit = True
-            elif reaction.emoji == '🛑':
-                hit = False
-    # If stay determine winner (dealer or player), flip dealers second card
-    if not hit:
-        embed.set_field_at(index=0, name='Dealer Hand', value=str(dealer_hand), inline=True)
-    # If hit give another card
-    if hit:
-        # Check if they've gone over
-        player_hand.add(deck.deal(1))
-        embed.set_field_at(index=1, name=player.name+' Hand', value=str(player_hand), inline=True)
-    await embed_msg.edit(embed=embed)
-    '''
     '''
     Play Players hand:
     Check if Ace has been played
@@ -694,14 +665,18 @@ async def blackjack(ctx, bet: int):
 
     if player_sum > 21:
         # Withdraw coins from player
+        await removeFunds(ctx.message.guild.id, player, bet)
         embed.add_field(name='Player has busted', value=player.name + ' has lost ' + str(bet), inline=False)
     elif dealer_sum > 21:
-        embed.add_field(name='Dealer has busted', value=player.name + ' has won ' + str(bet), inline=False)
+        await addFunds(ctx.message.guild.id, player, int(bet/2))
+        embed.add_field(name='Dealer has busted', value=player.name + ' has been payed out 1/2 bet of' + str(bet), inline=False)
     elif player_sum > dealer_sum:
         # Payout player
+        await addFunds(ctx.message.guild.id, player, bet)
         embed.add_field(name=player.name + 'has won!', value='They have been paid out ' + str(bet), inline=False)
     elif player_sum <= dealer_sum:
         # Withdraw coins from player
+        await removeFunds(ctx.message.guild.id, player, bet)
         embed.add_field(name='Dealer has won.', value=player.name + 'has lost ' + str(bet), inline=False)
     await embed_msg.edit(embed=embed)
 
