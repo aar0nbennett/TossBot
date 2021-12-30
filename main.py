@@ -37,6 +37,9 @@ default_gs_dict = {
 }
 face_cards = ['Jack', 'Queen', 'King']
 
+id_list = [[713444498331533314, 713755841282441257]]  # First int is guild id, second int is channel id
+# Possibly change to a dictionary
+
 # Client Setup
 activity = discord.Activity(name=verStr, type=discord.ActivityType.streaming)
 client = commands.Bot(command_prefix=commandsPrefix, intents=intents, activity=activity)
@@ -78,6 +81,9 @@ async def on_guild_join(guild):
         writer.writeheader()
         writer.writerows(csv_rows)
 
+    # Get guild id
+    guild_id = guild.id
+
     # Create bot channel category
     '''
     Update later to make so that only TossBot can add messages to the channels
@@ -89,10 +95,15 @@ async def on_guild_join(guild):
     Just make it so its everyone can read messages but cant send
     '''
     category = guild.create_category_channel('TossBot Channels')
+    # Create a communication channel, and get channel id
+    channel_id = guild.create_text_channel('bot-communication', category=category)
     # Create bot audit log channel
     guild.create_text_channel('audit-log', category=category)
     # Create bet log channel
     guild.create_text_channel('bet-log', category=category)
+
+    # Add them id_list
+    id_list.append([guild_id, channel_id])
 
     '''
                 Guilds Setting JSON
@@ -710,13 +721,23 @@ async def raffle(guild_id: int):
 # Task for raffle called every week
 @tasks.loop(hours=168)
 async def called_once_a_week():
-    for i in range(len(guilds_id) - 1):
-        message_channel = client.get_channel(channels_id[i])
+    for i in range(len(id_list) - 1):
+        # Get local variables
+        guild_id = id_list[i][0]
+        channel_id = id_list[i][1]
+        message_channel = client.get_channel(channel_id)
         print(f"Got channel {message_channel}")
-        winner_id, winnings = raffle(guilds_id[i])
+        guild = client.get_guild(guild_id)
+        print(f"Got guild {guild.name}")
+        # Complete weekly swear jar raffle
+        winner_id, winnings = raffle(guild_id)
         winner_mentionable = '<@' + winner_id + '>'
         await message_channel.send('Congrats %s you have won this weeks raffle!\n'
                                    'You have won %d' % (winner_mentionable, int(winnings)))
+        # Disperse welfare to each guilds members
+        for mem in guild.members:
+            await addFunds(guild_id, mem, 5)
+
 
 
 @called_once_a_week.before_loop
