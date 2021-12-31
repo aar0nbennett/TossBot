@@ -13,7 +13,7 @@ import pydealer
 '''
 
 # Global Variables
-verStr = 'Version Alpha 2.0'
+verStr = 'Version Alpha 2.1'
 commandsPrefix = '~'  # In the server settings make it so server admin can change prefix
 profanityToggle = True
 swearwords = []
@@ -94,13 +94,13 @@ async def on_guild_join(guild):
         }
     Just make it so its everyone can read messages but cant send
     '''
-    category = guild.create_category_channel('TossBot Channels')
+    category = await guild.create_category_channel('TossBot Channels')
     # Create a communication channel, and get channel id
-    channel_id = guild.create_text_channel('bot-communication', category=category)
+    channel_id = await guild.create_text_channel('bot-communication', category=category)
     # Create bot audit log channel
-    guild.create_text_channel('audit-log', category=category)
+    await guild.create_text_channel('audit-log', category=category)
     # Create bet log channel
-    guild.create_text_channel('bet-log', category=category)
+    await guild.create_text_channel('bet-log', category=category)
 
     # Add them id_list
     id_list.append([guild_id, channel_id])
