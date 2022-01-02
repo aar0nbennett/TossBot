@@ -27,6 +27,8 @@ bannedWords = []
 csv_fieldnames = ['id', 'coins']
 guilds_id = [713444498331533314]  # Add UNCC Roommates into here when ready
 channels_id = [713755841282441257]  # Add 614672777240379409 when UNCC Roommates is in
+hc_guild_id = 926492856942743562  # Hardcoded integer for test server, change it to UNCC Roommate when added
+hc_channel_id = 926975648071843943
 default_gs_dict = {
     "profanityToggle": "True",
     "coinName": "coin",
@@ -83,6 +85,7 @@ async def on_guild_join(guild):
 
     # Get guild id
     guild_id = guild.id
+    print("Guild id is %s" % guild_id)
 
     # Create bot channel category
     '''
@@ -96,14 +99,20 @@ async def on_guild_join(guild):
     '''
     category = await guild.create_category_channel('TossBot Channels')
     # Create a communication channel, and get channel id
-    channel_id = await guild.create_text_channel('bot-communication', category=category)
+    channel = await guild.create_text_channel('bot-communication', category=category)
+    print("Channel id is %s" % channel.id)
     # Create bot audit log channel
     await guild.create_text_channel('audit-log', category=category)
     # Create bet log channel
     await guild.create_text_channel('bet-log', category=category)
 
-    # Add them id_list
-    id_list.append([guild_id, channel_id])
+    # Add them ids.csv
+    '''
+    csv_row = [{'guild_name': guild.name, 'guild.id': guild_id, 'channel_id': channel_id}]
+    with open("ids.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(csv_row)
+    '''
 
     '''
                 Guilds Setting JSON
@@ -679,8 +688,9 @@ async def blackjack(ctx, bet: int):
         await removeFunds(ctx.message.guild.id, player, bet)
         embed.add_field(name='Player has busted', value=player.name + ' has lost ' + str(bet), inline=False)
     elif dealer_sum > 21:
-        await addFunds(ctx.message.guild.id, player, int(bet/2))
-        embed.add_field(name='Dealer has busted', value=player.name + ' has been payed out 1/2 bet of' + str(bet), inline=False)
+        await addFunds(ctx.message.guild.id, player, int(bet / 2))
+        embed.add_field(name='Dealer has busted', value=player.name + ' has been payed out 1/2 bet of' + str(bet),
+                        inline=False)
     elif player_sum > dealer_sum:
         # Payout player
         await addFunds(ctx.message.guild.id, player, bet)
@@ -698,36 +708,41 @@ async def raffle(guild_id: int):
     csv_list = getCSVList(guild_id)
     sj = csv_list.pop(1)
     sj_amount = sj[1]
+    print(sj)
+    print(sj_amount)
 
     # Randomly select one member
     csv_list.pop(0)
     winner = random.choice(csv_list)
     winner_id = winner[0]
+    print('Winners id: ' + winner_id)
 
     # Update coin csv
     csv_name = str(guild_id) + '_coins.csv'
     df = pd.read_csv(csv_name)
     # Give winning user sj_amount
     coin_val = df.loc[df["id"] == str(winner_id), "coins"]
-    coin_val = coin_val + sj_amount
+    coin_val = coin_val + int(sj_amount)
     df.loc[df["id"] == str(winner_id), "coins"] = coin_val
     # Set Swear Jar to zero
     df.loc[df["id"] == 'swearjar', "coins"] = 0
     df.to_csv(csv_name, index=False)
 
-    return winner_id, sj_amount  # Return both id and amount to be put in the congratulations message
+    return winner_id, int(sj_amount);  # Return both id and amount to be put in the congratulations message
 
 
 # Task for raffle called every week
-@tasks.loop(hours=168)
+@tasks.loop(hours=168)  # weekly is 168 hours
 async def called_once_a_week():
-    for i in range(len(id_list) - 1):
+    # Possible usage for multiple servers
+    '''
+    for i in range(len(guilds_id)):
         # Get local variables
-        guild_id = id_list[i][0]
-        channel_id = id_list[i][1]
-        message_channel = client.get_channel(channel_id)
+        guild_id = guilds_id[i]
+        channel_id = channels_id[i]
+        message_channel = client.fetch_channel(channel_id)
         print(f"Got channel {message_channel}")
-        guild = client.get_guild(guild_id)
+        guild = client.fetch_guild(guild_id)
         print(f"Got guild {guild.name}")
         # Complete weekly swear jar raffle
         winner_id, winnings = raffle(guild_id)
@@ -737,7 +752,20 @@ async def called_once_a_week():
         # Disperse welfare to each guilds members
         for mem in guild.members:
             await addFunds(guild_id, mem, 5)
-
+    '''
+    # Hardcoded raffle for one server
+    guild = client.get_guild(hc_guild_id)
+    print('Guild is:')
+    print(guild)
+    print(guild.id)
+    message_channel = await client.fetch_channel(hc_channel_id)
+    winner_id, winnings = await raffle(hc_guild_id)
+    winner_mentionable = '<@' + winner_id + '>'
+    await message_channel.send('Congrats %s you have won this weeks raffle!\n'
+                               'You have won %d' % (winner_mentionable, int(winnings)))
+    print(guild.members)
+    for mem in guild.members:
+        await addFunds(hc_guild_id, mem, 5)
 
 
 @called_once_a_week.before_loop
@@ -747,5 +775,5 @@ async def before():
 
 
 # Uncomment when ready to do raffle, make sure to implement for UNCC Roommates discord also
-# called_once_a_week.start()
+called_once_a_week.start()
 client.run(os.getenv('TOKEN'))
